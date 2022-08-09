@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react"
 
 const UploadFile = () => {
   const [selFile, setSelFile] = useState("")
-  const url = "https://preview-gen.herokuapp.com"
+  const url = "https://Hosted_preview_backend.com"
   const apiUrl = "http://localhost:4000";
 
   const [loading, setLoading] = useState(false);
