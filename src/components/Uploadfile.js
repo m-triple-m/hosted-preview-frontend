@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react"
 
 const UploadFile = () => {
   const [selFile, setSelFile] = useState("")
-  const url = "https://Hosted_preview_backend.com"
+  // const url = "https://Hosted_preview_backend.com"
+  const url = "https://preview-demo-backend.herokuapp.com"
   const apiUrl = "http://localhost:4000";
 
   const [loading, setLoading] = useState(false);
@@ -22,11 +23,59 @@ const UploadFile = () => {
   useEffect(() => {
     getDataFromBackend();
   }, [])
+
+  const deleteFile = (id) => {
+    fetch(url+'/file/delete/'+id, {method : 'DELETE'})
+    .then(res => res.json())
+    .then(data => {
+      console.log(data);
+      getDataFromBackend();
+    })
+  }
   
+  const genFilePreview = (saveFile, filename) => {
+    fetch(apiUrl + "/util/gen-doc-preview", {
+      method: "POST",
+      body : JSON.stringify({
+        url : url + "/" + filename
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then((res) => {
+      console.log(res.status);
+      res.json().then(({ previewid }) => {
+        console.log(previewid);
+
+        saveFile(previewid);
+        
+      })
+    })
+  }
+
+  const genVideoPreview = (saveFile, filename) => {
+    fetch(apiUrl + "/util/gen-vid-preview", {
+      method: "POST",
+      body : JSON.stringify({
+        url : url + "/" + filename
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).then((res) => {
+      console.log(res.status);
+      res.json().then(({ previewid }) => {
+        console.log(previewid);
+        saveFile(previewid);
+      })
+    })
+  }
 
   const addFile = (e) => {
     const file = e.target.files[0]
+    console.log(file.type.startsWith('video'));
     setSelFile(file.name)
+    console.log();
     const fd = new FormData()
     fd.append("myfile", file)
     fetch(url + "/util/uploadfile", {
@@ -37,24 +86,14 @@ const UploadFile = () => {
         console.log("file uploaded")
 
         // apicall
-        fetch(apiUrl + "/util/gen-doc-preview", {
-          method: "POST",
-          body : JSON.stringify({
-            url : url + "/" + file.name
-          }),
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }).then((res) => {
-          console.log(res.status);
-          res.json().then(({ previewid }) => {
-            console.log(previewid);
-
+        if(file.type.startsWith('video')){
+          genVideoPreview((previewid) => {
             fetch(url + "/file/add", {
               method: "POST",
               body: JSON.stringify({
                 title: file.name,
                 file: file.name,
+                type : file.type,
                 thumbnail: previewid,
                 createdAt: new Date(),
               }),
@@ -62,10 +101,36 @@ const UploadFile = () => {
                 "Content-Type": "application/json",
               },
             }).then((res) => {
-              console.log(res.status)
+              console.log(res.status);
+              // setTimeout(() => {
+              //   setLoading(true);
+              //   getDataFromBackend();
+              // }, 10000);
             })
-          })
-        })
+          }, file.name)
+        }else{
+          genFilePreview((previewid) => {
+            fetch(url + "/file/add", {
+              method: "POST",
+              body: JSON.stringify({
+                title: file.name,
+                file: file.name,
+                type : file.type,
+                thumbnail: previewid,
+                createdAt: new Date(),
+              }),
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }).then((res) => {
+              console.log(res.status);
+              setTimeout(() => {
+                setLoading(true);
+                getDataFromBackend();
+              }, 3000);
+            })
+          }, file.name)
+        }
       }
     })
   }
@@ -80,30 +145,40 @@ const UploadFile = () => {
         </div>
       );
     } else {
-      return fileData.map(({ _id, title, file, thumbnail, createdAt }) => (
+      return <table className="table table-dark mt-5">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>File</th>
+          <th>Created on</th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {fileData.map(({ _id, title, file,type, thumbnail, createdAt }) => (
         <tr key={_id}>
           <td>
+            {type.startsWith('video')
+            ?
+            <img className="" style={{height : '200px'}} src={apiUrl+'/util/ret-vid-preview/'+thumbnail} alt="" />
+            :
             <img className="" style={{height : '200px'}} src={apiUrl+'/util/ret-doc-preview/'+thumbnail} alt="" />
+          }
           </td>
           <td>{title}</td>
           <td>{file}</td>
           <td>{new Date(createdAt).toLocaleTimeString()}</td>
-          {/* <td>
-            <button
-              className="btn btn-primary"
-              onClick={(e) => updateUser({ _id, email, password, username })}
-            >
-              {" "}
-              <i class="fas fa-pencil"></i>{" "}
-            </button>
-          </td>
           <td>
-            <button className="btn btn-danger" onClick={(e) => deleteUser(_id)}>
+            <button className="btn btn-danger" onClick={(e) => deleteFile(_id)}>
               <i class="fas fa-trash"></i>
             </button>
-          </td> */}
+          </td>
         </tr>
-      ));
+      ))}
+        </tbody>
+    </table>
+      
     }
   };
 
@@ -148,18 +223,8 @@ const UploadFile = () => {
         </div>
       </div>
 
-      <table className="table table-dark mt-5">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>File</th>
-                <th>Created on</th>
-                {/* <th></th>
-                <th></th> */}
-              </tr>
-            </thead>
-            <tbody>{displayUsers()}</tbody>
-          </table>
+      
+              {displayUsers()}
     </div>
   )
 }
